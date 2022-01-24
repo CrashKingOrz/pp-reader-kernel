@@ -171,6 +171,42 @@ class GetHandsInfo:
         return frame
 
 
+class PPReader:
+    def __init__(self, device="CPU", window_w=960, window_h=720, min_det_cof=0.7, min_trace_cof=0.5, max_num_hands=2):
+        self.fps_text = 0
+        self.hand_num = 0
+        self.hand_mode = "None"
+        self.hand_keypoint_landmark_list = []
+        self.paw_box_coordinate = []
+        self.index_finger_coordinate = []
+        self.hand_flag = "Right"
+        self.thumbnail = None
+        self.label_text_cn = "无"
+        self.label_text_en = "None"
+        self.ocr_text = ""
+        self.ocr_text_area = None
+        self.pp_reader = GetHandsInfo(device, window_w, window_h, min_det_cof, min_trace_cof, max_num_hands)
+
+    @staticmethod
+    def draw_paw_box():
+        pass
+
+    @staticmethod
+    def draw_ring():
+        pass
+
+    @staticmethod
+    def draw_recognize_box():
+        pass
+
+    @staticmethod
+    def draw_finger_line():
+        pass
+
+
+
+
+
 def ratio_x_to_pixel(x, window_w):
     """
     Adaptive screen
