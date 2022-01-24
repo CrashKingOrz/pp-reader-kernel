@@ -25,6 +25,12 @@ class ModeProcessor:
         # initialize the residence time
         now = time.time()
         self.stop_time = {'Left': now, 'Right': now}
+
+        # resize thumbnail
+        self.stop_time_resize = now
+        self.change_thumbnail_label = False
+        self.lase_line_len = 0
+
         # color of the ring
         self.handedness_color = {'Left': (255, 0, 0), 'Right': (255, 0, 255)}
 
@@ -164,6 +170,62 @@ class ModeProcessor:
         self.last_thumb_img = thumb_img
         self.img_with_thumbnail = frame
         return frame
+    
+    def resize_thumbnail(self, raw_img, frame, line_len):
+        """
+        resize the thumbnail in the low left corner.
+
+        @param raw_img: raw image in the rectangle
+        @param frame: original frame image
+        @param line_len: the line between thumb finger and index finger
+        @return: image with the thumbnail and resize thumnail
+        """
+
+        frame_height, frame_width, _ = frame.shape
+        # cover
+        raw_img_h, raw_img_w, _ = raw_img.shape
+
+        simple_thumb_img = cv2.resize(self.simple_thumbnail, (raw_img_w, raw_img_h))
+
+        resize_width = np.interp(line_len, [50, 300], [raw_img_w, frame_width])
+
+        resize_height = np.interp(line_len, [50, 300], [raw_img_h, frame_height])
+
+        thumb_img = cv2.resize(simple_thumb_img, (int(resize_width), int(resize_height)))
+
+        cropped_img = thumb_img[0:raw_img_h, 0:raw_img_w]
+
+        rect_weight = 4
+        # Draw a rectangle around the thumbnail
+        cropped_img = cv2.rectangle(cropped_img, (0, 0), (raw_img_w, raw_img_h), (0, 139, 247), rect_weight)
+
+
+        frame = np.array(frame)
+
+        frame[(frame_height - raw_img_h):frame_height, 0:raw_img_w, :] = cropped_img
+
+        if(line_len == self.lase_line_len):
+            if (time.time() - self.stop_time_resize) > self.activate_duration:
+                self.change_thumbnail_label = False
+                self.last_thumb_img = cropped_img
+        else:
+            self.stop_time_resize = time.time()
+
+        self.lase_line_len = line_len
+
+        return frame
+    
+    def adjust_change_thumbnail_label(self, linelen):
+        """
+        change the resize thumbnail labe.
+
+        @param line_len: the line between thumb finger and index finger
+        @return: change the resize thumbnail labe
+        """
+
+        if(linelen < 50):
+            self.change_thumbnail_label = True;
+        
 
     # Get the speech text
     def get_speech_text(self):

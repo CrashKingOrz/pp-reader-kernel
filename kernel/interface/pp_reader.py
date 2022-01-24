@@ -106,6 +106,45 @@ class GetHandsInfo:
 
         return index_finger_tip_x, index_finger_tip_y
 
+    def get_thumb_finger_tip_axis(self, landmark):
+        """
+        Get the X, Y coordinate of thumb finger
+        @param landmark: detection hands result.multi_handedness.landmark
+        @return: the X, Y coordinate of thumb finger
+        """
+        landmark_list = self._get_hand_keypoint_coordinates(landmark)
+        thumb_finger_tip_x, thumb_finger_tip_y = -1, -1
+        if landmark_list:       
+            thumb_finger_tip = landmark_list[4]
+            thumb_finger_tip_x = ratio_x_to_pixel(thumb_finger_tip[0], self.window_w)
+            thumb_finger_tip_y = ratio_y_to_pixel(thumb_finger_tip[1], self.window_h)
+
+        return thumb_finger_tip_x, thumb_finger_tip_y
+    def draw_line_thumb_index(self, frame, index_finger_tip_x, index_finger_tip_y, thumb_finger_tip_x, thumb_finger_tip_y):
+        """
+        draw the line between thumb finger and index finger
+        @param frame: input a image or frame
+        @param index_finger_tip_x: the X coordinate of index finger
+        @param index_finger_tip_y: the Y coordinate of index finger
+        @param thumb_finger_tip_x: the X coordinate of thumb finger
+        @param thumb_finger_tip_x: the X coordinate of thumb finger
+        @return: the line between thumb finger and index finger
+        """        
+        finger_middle_point = (thumb_finger_tip_x + index_finger_tip_x) // 2, (
+                thumb_finger_tip_y + index_finger_tip_y) // 2
+        thumb_finger_point = (thumb_finger_tip_x, thumb_finger_tip_y)
+        index_finger_point = (index_finger_tip_x, index_finger_tip_y)
+        frame = cv2.circle(frame, thumb_finger_point, 10, (255, 0, 255), -1)
+        frame = cv2.circle(frame, index_finger_point, 10, (255, 0, 255), -1)
+        frame = cv2.circle(frame, finger_middle_point, 10, (255, 0, 255), -1)
+        frame = cv2.line(frame, thumb_finger_point, index_finger_point, (255, 0, 255), 5)
+        line_len = math.hypot((index_finger_tip_x - thumb_finger_tip_x),
+                            (index_finger_tip_y - thumb_finger_tip_y))
+        
+        return line_len
+
+
+
     def get_paw_box_axis(self, landmark):
         """
         Get the X, Y coordinate of paw box left top point and right bottom point
