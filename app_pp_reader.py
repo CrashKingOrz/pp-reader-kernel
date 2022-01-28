@@ -15,6 +15,7 @@ class PPReaderDemo:
         self.video_cap = get_video_stream(video_path)
         self.pp_reader = GetHandsInfo(device, window_w, window_h)
         self.image = None
+        self.line_len = 100
 
     def frame_processor(self):
         if self.pp_reader.results is None:
@@ -39,11 +40,11 @@ class PPReaderDemo:
                 thumb_finger_tip_x, thumb_finger_tip_y = self.pp_reader.get_thumb_finger_tip_axis(hand_landmarks.landmark)
 
                 self.line_len = self.pp_reader.draw_line_thumb_index(self.image, index_finger_tip_x, index_finger_tip_y, thumb_finger_tip_x, thumb_finger_tip_y)
-                
+
                 self.pp_reader.mode_processor.adjust_change_thumbnail_label(self.line_len)
                 self.image = self.pp_reader.draw_paw_box(self.image, hand_landmarks.landmark, handedness_list, hand_index)
-
-                self.image = self.pp_reader.mode_processor.mode_execute(handedness_list[hand_index],
+                if not self.pp_reader.mode_processor.change_thumbnail_label:
+                    self.image = self.pp_reader.mode_processor.mode_execute(handedness_list[hand_index],
                                                                         [index_finger_tip_x, index_finger_tip_y],
                                                                         self.image, frame_copy)
         else:

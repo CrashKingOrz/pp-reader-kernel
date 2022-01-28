@@ -28,6 +28,9 @@ class ModeProcessor:
 
         # resize thumbnail
         self.stop_time_resize = now
+        # change thumbnail
+        self.stop_time_change_thumbnail = now
+
         self.change_thumbnail_label = False
         self.lase_line_len = 0
 
@@ -136,7 +139,7 @@ class ModeProcessor:
         # Whether to use OCR
         ocr_text = ''
         if self.last_detect_res['ocr'] == '无':
-
+            print('wowowowo')
             src_im, text_list = self.pp_ocr.ocr_image(raw_img)
             thumb_img = cv2.resize(src_im, (thumb_img_w, thumb_img_h))
 
@@ -204,10 +207,13 @@ class ModeProcessor:
 
         frame[(frame_height - raw_img_h):frame_height, 0:raw_img_w, :] = cropped_img
 
-        if(line_len == self.lase_line_len):
-            if (time.time() - self.stop_time_resize) > self.activate_duration:
+        if(abs(line_len - self.lase_line_len) < 10):
+            if (time.time() - self.stop_time_resize) > 2:
                 self.change_thumbnail_label = False
                 self.last_thumb_img = cropped_img
+                self.last_detect_res['detection'] = None
+                self.last_detect_res['ocr'] == '无'
+
         else:
             self.stop_time_resize = time.time()
 
@@ -223,10 +229,9 @@ class ModeProcessor:
         @return: change the resize thumbnail labe
         """
 
-        if(linelen < 50):
-            self.change_thumbnail_label = True;
+        if(linelen < 20):
+            self.change_thumbnail_label = True
         
-
     # Get the speech text
     def get_speech_text(self):
         speech_text = []
