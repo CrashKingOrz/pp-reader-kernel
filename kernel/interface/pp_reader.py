@@ -120,30 +120,6 @@ class GetHandsInfo:
             thumb_finger_tip_y = ratio_y_to_pixel(thumb_finger_tip[1], self.window_h)
 
         return thumb_finger_tip_x, thumb_finger_tip_y
-    def draw_line_thumb_index(self, frame, index_finger_tip_x, index_finger_tip_y, thumb_finger_tip_x, thumb_finger_tip_y):
-        """
-        draw the line between thumb finger and index finger
-        @param frame: input a image or frame
-        @param index_finger_tip_x: the X coordinate of index finger
-        @param index_finger_tip_y: the Y coordinate of index finger
-        @param thumb_finger_tip_x: the X coordinate of thumb finger
-        @param thumb_finger_tip_x: the X coordinate of thumb finger
-        @return: the line between thumb finger and index finger
-        """        
-        finger_middle_point = (thumb_finger_tip_x + index_finger_tip_x) // 2, (
-                thumb_finger_tip_y + index_finger_tip_y) // 2
-        thumb_finger_point = (thumb_finger_tip_x, thumb_finger_tip_y)
-        index_finger_point = (index_finger_tip_x, index_finger_tip_y)
-        frame = cv2.circle(frame, thumb_finger_point, 10, (255, 0, 255), -1)
-        frame = cv2.circle(frame, index_finger_point, 10, (255, 0, 255), -1)
-        frame = cv2.circle(frame, finger_middle_point, 10, (255, 0, 255), -1)
-        frame = cv2.line(frame, thumb_finger_point, index_finger_point, (255, 0, 255), 5)
-        line_len = math.hypot((index_finger_tip_x - thumb_finger_tip_x),
-                            (index_finger_tip_y - thumb_finger_tip_y))
-        
-        return line_len
-
-
 
     def get_paw_box_axis(self, landmark):
         """

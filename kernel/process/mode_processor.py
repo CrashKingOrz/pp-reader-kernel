@@ -1,3 +1,4 @@
+from tkinter.messagebox import NO
 import cv2
 import numpy as np
 import time
@@ -30,6 +31,9 @@ class ModeProcessor:
         self.stop_time_resize = now
         # change thumbnail
         self.stop_time_change_thumbnail = now
+        # move resize
+        self.x_move = 0
+        self.y_move = 0
 
         self.change_thumbnail_label = False
         self.lase_line_len = 0
@@ -97,9 +101,10 @@ class ModeProcessor:
         @param frame: original frame image
         @return: image with the thumbnail
         """
+        if self.last_detect_res == {'detection': None, 'ocr': '无'}:
+            self.simple_thumbnail = raw_img.copy()
         # Detect
         if self.last_detect_res['detection'] is None:
-            self.simple_thumbnail = raw_img
             im, results = self.pp_dete.detect_img(raw_img)
             # Take the first identified object
             if len(results['boxes']) > 0:
@@ -139,7 +144,6 @@ class ModeProcessor:
         # Whether to use OCR
         ocr_text = ''
         if self.last_detect_res['ocr'] == '无':
-            print('wowowowo')
             src_im, text_list = self.pp_ocr.ocr_image(raw_img)
             thumb_img = cv2.resize(src_im, (thumb_img_w, thumb_img_h))
 
@@ -174,7 +178,7 @@ class ModeProcessor:
         self.img_with_thumbnail = frame
         return frame
     
-    def resize_thumbnail(self, raw_img, frame, line_len):
+    def resize_move_thumbnail(self, raw_img, frame, line_len, x_distance, y_distance):
         """
         resize the thumbnail in the low left corner.
 
@@ -196,7 +200,28 @@ class ModeProcessor:
 
         thumb_img = cv2.resize(simple_thumb_img, (int(resize_width), int(resize_height)))
 
-        cropped_img = thumb_img[0:raw_img_h, 0:raw_img_w]
+        x_move = int(x_distance * resize_width / frame_width)
+        
+        y_move = int(y_distance * resize_height / frame_height)
+        
+        self.x_move = self.x_move + x_move
+
+        if(self.x_move < 0):
+            self.x_move = 0
+        if(self.x_move > (resize_width - raw_img_w)):
+            self.x_move = resize_width - raw_img_w
+
+        self.y_move =self.y_move + y_move
+
+        if(self.y_move < 0):
+            self.y_move = 0
+        if(self.y_move > (resize_height - raw_img_h)):
+            self.y_move = resize_height - raw_img_h
+        self.y_move = int(self.y_move)
+        self.x_move = int(self.x_move)
+        
+        cropped_img = thumb_img[self.y_move:raw_img_h + self.y_move, self.x_move:raw_img_w + self.x_move]
+
 
         rect_weight = 4
         # Draw a rectangle around the thumbnail
@@ -207,7 +232,7 @@ class ModeProcessor:
 
         frame[(frame_height - raw_img_h):frame_height, 0:raw_img_w, :] = cropped_img
 
-        if(abs(line_len - self.lase_line_len) < 10):
+        if (abs(line_len - self.lase_line_len) < 10) and (x_distance <= self.float_distance) and (y_distance <= self.float_distance):
             if (time.time() - self.stop_time_resize) > 2:
                 self.change_thumbnail_label = False
                 self.last_thumb_img = cropped_img
@@ -224,13 +249,45 @@ class ModeProcessor:
     def adjust_change_thumbnail_label(self, linelen):
         """
         change the resize thumbnail labe.
-
         @param line_len: the line between thumb finger and index finger
         @return: change the resize thumbnail labe
         """
-
-        if(linelen < 20):
+        if(linelen < 40):
             self.change_thumbnail_label = True
+    
+    def get_line_thumb_index(self, index_finger_tip_x, index_finger_tip_y, thumb_finger_tip_x, thumb_finger_tip_y):
+        """
+        get the line between thumb finger and index finger
+        @param index_finger_tip_x: the X coordinate of index finger
+        @param index_finger_tip_y: the Y coordinate of index finger
+        @param thumb_finger_tip_x: the X coordinate of thumb finger
+        @param thumb_finger_tip_x: the X coordinate of thumb finger
+        @return: the line between thumb finger and index finger
+        """        
+        line_len = math.hypot((index_finger_tip_x - thumb_finger_tip_x),
+                            (index_finger_tip_y - thumb_finger_tip_y))
+        
+        return line_len
+    
+    def draw_line_thumb_index(self, frame, index_finger_tip_x, index_finger_tip_y, thumb_finger_tip_x, thumb_finger_tip_y):
+        """
+        draw the line between thumb finger and index finger
+
+        @param frame: input a image or frame
+        @param index_finger_tip_x: the X coordinate of index finger
+        @param index_finger_tip_y: the Y coordinate of index finger
+        @param thumb_finger_tip_x: the X coordinate of thumb finger
+        @param thumb_finger_tip_x: the X coordinate of thumb finger
+        @return: the line between thumb finger and index finger
+        """    
+        finger_middle_point = (thumb_finger_tip_x + index_finger_tip_x) // 2, (
+                thumb_finger_tip_y + index_finger_tip_y) // 2
+        thumb_finger_point = (thumb_finger_tip_x, thumb_finger_tip_y)
+        index_finger_point = (index_finger_tip_x, index_finger_tip_y)
+        frame = cv2.circle(frame, thumb_finger_point, 10, (255, 0, 255), -1)
+        frame = cv2.circle(frame, index_finger_point, 10, (255, 0, 255), -1)
+        frame = cv2.circle(frame, finger_middle_point, 10, (255, 0, 255), -1)
+        frame = cv2.line(frame, thumb_finger_point, index_finger_point, (255, 0, 255), 5)
         
     # Get the speech text
     def get_speech_text(self):
@@ -258,6 +315,25 @@ class ModeProcessor:
         if len(text):
             if not len(self.dic):
                 self.dic.append(text)
+
+    def resize_mode(self, finger_cord, thumb_cord, linelen, frame, x_distance, y_distance):
+        """
+        Resize mode implement with one hand. It will generate the image shown on the screen.
+
+        @param frame: input a image or frame
+        @param index_finger_tip_x: the X coordinate of index finger
+        @param index_finger_tip_y: the Y coordinate of index finger
+        @param thumb_finger_tip_x: the X coordinate of thumb finger
+        @param thumb_finger_tip_x: the X coordinate of thumb finger
+        @return: the line between thumb finger and index finger
+        """    
+
+        self.draw_line_thumb_index(frame, finger_cord[0], finger_cord[1], thumb_cord[0], thumb_cord[1])
+        frame = self.resize_move_thumbnail(self.simple_thumbnail, frame, linelen, x_distance, y_distance)
+
+        return frame
+
+
 
     def single_mode(self, x_distance, y_distance, handedness, finger_cord, frame, frame_copy):
         """
@@ -437,7 +513,7 @@ class ModeProcessor:
         self.last_finger_arc_degree = {'Left': 0, 'Right': 0}
         self.single_dete_last_time = None
 
-    def mode_execute(self, handedness='Left', finger_cord=None, frame=None, frame_copy=None):
+    def mode_execute(self, handedness='Left', finger_cord=None, thumb_cord=None, frame=None, frame_copy=None):
         """
         Choose a mode to execute according to the number of hands.
 
@@ -447,6 +523,14 @@ class ModeProcessor:
         @param frame_copy: a clean copy of the original frame
         @return: image shown on the screen
         """
+
+        linelen = self.get_line_thumb_index(finger_cord[0], finger_cord[1], thumb_cord[0], thumb_cord[1])
+
+        if isinstance(self.last_thumb_img, np.ndarray):
+            self.adjust_change_thumbnail_label(linelen)
+        
+
+
         (x1, y1), (x2, y2) = (-1, -1), (-1, -1)
         hand_movement_route = []
 
@@ -454,14 +538,23 @@ class ModeProcessor:
         x_distance = abs(finger_cord[0] - self.last_finger_cord_x[handedness])
         y_distance = abs(finger_cord[1] - self.last_finger_cord_y[handedness])
 
+        # 
+        x_distance_move = finger_cord[0] - self.last_finger_cord_x[handedness]
+        y_distance_move = finger_cord[1] - self.last_finger_cord_y[handedness]
+
         if self.hand_num == 0:
             self.reset_mode_variable()
             self.none_mode()
         elif self.hand_num == 1:
-            if self.hand_mode != 'single':
+            if(self.change_thumbnail_label):
                 self.reset_mode_variable()
-                self.hand_mode = 'single'
-            frame, (x1, y1), (x2, y2), hand_movement_route = self.single_mode(x_distance, y_distance, handedness, finger_cord, frame, frame_copy)
+                self.hand_mode = 'resize'
+                frame = self.resize_mode(finger_cord, thumb_cord, linelen, frame, x_distance_move, y_distance_move)
+            else:
+                if self.hand_mode != 'single':
+                    self.reset_mode_variable()
+                    self.hand_mode = 'single'
+                frame, (x1, y1), (x2, y2), hand_movement_route = self.single_mode(x_distance, y_distance, handedness, finger_cord, frame, frame_copy)
         elif self.hand_num == 2:
             if self.hand_mode != 'double':
                 # In order to complement the object labels displayed on the left hand side
