@@ -79,9 +79,9 @@ class ModeProcessor:
         self.ocr_speaker = False
 
         # a process to deal with reader
-        self.dic = Manager().list()
-        self.p = Process(target=speak, args=(self.dic,))
-        self.p.start()
+        # self.dic = Manager().list()
+        # self.p = Process(target=speak, args=(self.dic,))
+        # self.p.start()
 
         self.img_with_thumbnail = None
         # a simple thumbnail with textbox
