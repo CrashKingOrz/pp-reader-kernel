@@ -311,7 +311,7 @@ def get_label_ocr(raw_img):
 
 
 def get_fps_text(ctime, fps_time):
-    return 1 / (ctime - fps_time)
+    return 1.0 / (ctime - fps_time)
 
 
 

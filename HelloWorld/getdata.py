@@ -93,43 +93,49 @@ class PPReaderDemo:
                                                                       str(self.pp_reader.mode_processor.hand_mode),
                                                                       (10, 150), text_color=(0, 255, 0), text_size=50)
 
-        return self.image
         # cv2.namedWindow('PPReader', cv2.WINDOW_FREERATIO)
         # cv2.imshow('PPReader', self.image)
 
         # read
-        # self.pp_reader.mode_processor.reader()
+        self.pp_reader.mode_processor.reader()
 
-        # if cv2.waitKey(5) & 0xFF == 27:
-        #     break
-        # self.video_cap.release()
+        return self.image
 
-ppreader = PPReaderDemo("CPU")
+ppreader = PPReaderDemo("GPU")
+
 
 def test(request):
-
-    
     src = json.loads(request.body).get('base64')
     data = src
     image_data = base64.b64decode(data)
 
     img_np_arr = np.fromstring(image_data, np.uint8)
+    img_np_arr = cv2.imdecode(img_np_arr, cv2.IMREAD_COLOR)
     print(img_np_arr.shape)
-    img_np_arr.resize(640, 480, 4)
-    print(img_np_arr.shape)
 
-    ImgRGBA = cv2.cvtColor(img_np_arr,cv2.COLOR_BGR2RGBA)
+    if img_np_arr is not None:
+        # img_np_arr.resize(640, 480, 4)
+        # print(img_np_arr.shape)
 
-    # 4 channel -> 3 channel
+        # ImgRGBA = cv2.cvtColor(img_np_arr, cv2.COLOR_BGR2RGBA)
 
-    image = cv2.cvtColor(ImgRGBA, cv2.COLOR_RGBA2RGB)
-    image = ppreader.generate_pp_reader(image)
+        # 4 channel -> 3 channel
+        # image = cv2.cvtColor(ImgRGBA, cv2.COLOR_RGBA2RGB)
+        image = img_np_arr.copy()
+        image = ppreader.generate_pp_reader(image)
 
+        # detection_label = ppreader.pp_reader.mode_processor.get_detection_label()
+        # ocr_text = ppreader.pp_reader.mode_processor.get_ocr_text()
+        # recognize_area = ppreader.pp_reader.mode_processor.get_recognize_area()
 
-    cv2.imshow('RandomColor', image)
-    cv2.waitKey(10)
+        cv2.imshow('RandomColor', image)
+        cv2.waitKey(1)
+    else:
+        print("ERROR: No Image Received!")
 
-    json_data = {'data':'ok'}
+    # json_data = {'data': 'ok', 'detection_label': detection_label, 'ocr_text': ocr_text,
+    #              'recognize_area': recognize_area}
+    json_data = {'data': 'ok'}
     return HttpResponse(json.dumps(json_data, ensure_ascii=False))
 
 
