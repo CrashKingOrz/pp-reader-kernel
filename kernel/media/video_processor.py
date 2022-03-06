@@ -23,7 +23,7 @@ def get_mp4_video_writer(fps, video_w, video_h):
     """
     video_save_dir = './record'
     os.makedirs(str(video_save_dir), exist_ok=True)
-    video_writer = cv2.VideoWriter(video_save_dir + '/out-' + str(time.time()) + '.mp4', cv2.VideoWriter_fourcc(*'H264')
+    video_writer = cv2.VideoWriter(video_save_dir + '/out-' + str(time.time()) + '.mp4', cv2.VideoWriter_fourcc(*"mp4v")
                                    , fps, (video_w, video_h))
     return video_writer
 

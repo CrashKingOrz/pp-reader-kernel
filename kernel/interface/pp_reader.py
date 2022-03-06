@@ -219,9 +219,6 @@ class PPReader:
         pass
 
 
-
-
-
 def ratio_x_to_pixel(x, window_w):
     """
     Adaptive screen

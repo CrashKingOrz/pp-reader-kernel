@@ -84,20 +84,21 @@ class PPReaderDemo:
         ctime = time.time()
         fps_text = get_fps_text(ctime, fps_time)
         fps_time = ctime
-        self.image = self.pp_reader.mode_processor.generator.add_text(self.image, "帧率: " + str(int(fps_text)),
-                                                                      (10, 30), text_color=(0, 255, 0), text_size=50)
-        self.image = self.pp_reader.mode_processor.generator.add_text(self.image, "手掌: " +
-                                                                      str(self.pp_reader.mode_processor.hand_num),
-                                                                      (10, 90), text_color=(0, 255, 0), text_size=50)
-        self.image = self.pp_reader.mode_processor.generator.add_text(self.image, "模式: " +
-                                                                      str(self.pp_reader.mode_processor.hand_mode),
-                                                                      (10, 150), text_color=(0, 255, 0), text_size=50)
+
+        self.image = cv2.putText(self.image, "fps: " + str(int(fps_text)), (10, 30),
+                                 fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0), thickness=2)
+        self.image = cv2.putText(self.image, "paw: " + str(self.pp_reader.mode_processor.hand_num),
+                                 (10, 90), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0),
+                                 thickness=2)
+        self.image = cv2.putText(self.image, "mode: " + str(self.pp_reader.mode_processor.hand_mode),
+                                 (10, 150), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0),
+                                 thickness=2)
 
         # cv2.namedWindow('PPReader', cv2.WINDOW_FREERATIO)
         # cv2.imshow('PPReader', self.image)
 
         # read
-        self.pp_reader.mode_processor.reader()
+        # self.pp_reader.mode_processor.reader()
 
         return self.image
 

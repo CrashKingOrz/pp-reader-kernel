@@ -19,7 +19,7 @@ class InfoGenerator:
             img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
         canvas = ImageDraw.Draw(img)
         # Change the font style by font style file
-        font_style = ImageFont.truetype("./fonts/simsun.ttc", text_size, encoding="utf-8")
+        font_style = ImageFont.truetype("./fonts/unic.ttc", text_size, encoding="utf-8")
         canvas.text(position, text, text_color, font=font_style)
         return cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2BGR)
 
@@ -66,7 +66,7 @@ class InfoGenerator:
         res = cv2.addWeighted(sub_img, 0.5, black_rect, 0.5, 1.0)
         for i in range(line_num):
             text = ocr_text[(i * line_text_num): (i + 1) * line_text_num]
-            res = self.add_text(res, text, (10, 30 * i + 10), text_color=(255, 255, 255), text_size=18)
+            res = cv2.putText(res, text, (10, 30 * i + 10), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(255, 0, 0), thickness=2)
         return res
 
     def generate_label_area(self, text, x, y, w, h, frame):
@@ -86,7 +86,7 @@ class InfoGenerator:
         black_rect = np.ones(sub_img.shape, dtype=np.uint8) * 0
 
         res = cv2.addWeighted(sub_img, 0.5, black_rect, 0.5, 1.0)
-        res = self.add_text(res, text, (10, 10), text_color=(255, 255, 255), text_size=30)
+        res = cv2.putText(res, text, (10, 10), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(255, 0, 0), thickness=2)
         return res
 
 

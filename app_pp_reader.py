@@ -8,7 +8,7 @@ from kernel.media.video_processor import get_video_stream, get_mp4_video_writer,
 
 
 class PPReaderDemo:
-    def __init__(self, video_path, device, window_w=960, window_h=720, out_fps=18):
+    def __init__(self, video_path, device, window_w=960, window_h=720, out_fps=30):
         self.window_w = window_w
         self.window_h = window_h
         self.out_fps = out_fps
@@ -71,9 +71,6 @@ class PPReaderDemo:
             self.image.flags.writeable = True
             self.image = cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR)
 
-            # read
-            # self.pp_reader.mode_processor.reader()
-
             # Todo: store thumbnail, this function need to realize this file
             if isinstance(self.pp_reader.mode_processor.last_thumb_img, np.ndarray):
                 self.image = self.pp_reader.mode_processor.generate_thumbnail(
@@ -85,21 +82,19 @@ class PPReaderDemo:
             ctime = time.time()
             fps_text = get_fps_text(ctime, fps_time)
             fps_time = ctime
-            self.image = self.pp_reader.mode_processor.generator.add_text(self.image, "帧率: " + str(int(fps_text)),
-                                                                          (10, 30), text_color=(0, 255, 0), text_size=50)
-            self.image = self.pp_reader.mode_processor.generator.add_text(self.image, "手掌: " +
-                                                                          str(self.pp_reader.mode_processor.hand_num),
-                                                                          (10, 90), text_color=(0, 255, 0), text_size=50)
-            self.image = self.pp_reader.mode_processor.generator.add_text(self.image, "模式: " +
-                                                                          str(self.pp_reader.mode_processor.hand_mode),
-                                                                          (10, 150), text_color=(0, 255, 0), text_size=50)
+            self.image = cv2.putText(self.image, "fps: " + str(int(fps_text)), (10, 30),
+                                     fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0), thickness=2)
+            self.image = cv2.putText(self.image, "paw: " + str(self.pp_reader.mode_processor.hand_num),
+                                     (10, 90), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0), thickness=2)
+            self.image = cv2.putText(self.image, "mode: " + str(self.pp_reader.mode_processor.hand_mode),
+                                     (10, 150), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0), thickness=2)
 
-            cv2.namedWindow('PPReader', cv2.WINDOW_FREERATIO)
-            cv2.imshow('PPReader', self.image)
+            # cv2.namedWindow('PPReader', cv2.WINDOW_FREERATIO)
+            # cv2.imshow('PPReader', self.image)
             video_writer.write(self.image)
 
             # read
-            self.pp_reader.mode_processor.reader()
+            # self.pp_reader.mode_processor.reader()
 
             if cv2.waitKey(5) & 0xFF == 27:
                 break
@@ -107,5 +102,5 @@ class PPReaderDemo:
 
 
 if __name__ == '__main__':
-    pp_reader = PPReaderDemo(0, "CPU")
+    pp_reader = PPReaderDemo("./sample/test_single.mp4", "GPU")
     pp_reader.generate_pp_reader()
