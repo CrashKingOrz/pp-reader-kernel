@@ -103,6 +103,6 @@ class PPReaderDemo:
 
 
 if __name__ == '__main__':
-    pp_reader = PPReaderDemo("./sample/test_single.mp4", "CPU")
+    pp_reader = PPReaderDemo("./sample/test_single.mp4", "GPU")
 
     pp_reader.generate_pp_reader()

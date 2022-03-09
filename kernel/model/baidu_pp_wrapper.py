@@ -130,48 +130,51 @@ class PpOCR:
         for text, score in rec_res:
             text_list.append(text)
 
-        d_list = []
-        text_result = []
-        for box in dt_boxes:
-            d1 = point_line_distance(index_finger_tip_coordinates, box[2], box[3])
-            d2 = min(abs(index_finger_tip_coordinates[0] - box[2][0]), abs(index_finger_tip_coordinates[0] - box[3][0]))
-            d_list.append(d1 + d2)
+        image = img
+        text_result = text_list
+        if len(text_list):
+            d_list = []
+            text_result = []
+            for box in dt_boxes:
+                d1 = point_line_distance(index_finger_tip_coordinates, box[2], box[3])
+                d2 = min(abs(index_finger_tip_coordinates[0] - box[2][0]), abs(index_finger_tip_coordinates[0] - box[3][0]))
+                d_list.append(d1 + d2)
 
-        d_list = np.array(d_list)
-        row_index = np.argmin(d_list)
-        if flag == 'word':
-            row_length = dt_boxes[row_index][2][0] - dt_boxes[row_index][3][0]
-            single_word_average_length = row_length / len(text_list[row_index])
-            word_index = int(
-                (index_finger_tip_coordinates[0] - dt_boxes[row_index][3][0]) / single_word_average_length) - 1
-            if word_index < 0:
-                word_index = 0
-            if word_index > len(text_list[row_index]):
-                word_index = len(text_list[row_index]) - 1
-            text_result = text_list[row_index][word_index]
+            d_list = np.array(d_list)
+            row_index = np.argmin(d_list)
+            if flag == 'word':
+                row_length = dt_boxes[row_index][2][0] - dt_boxes[row_index][3][0]
+                single_word_average_length = row_length / len(text_list[row_index])
+                word_index = int(
+                    (index_finger_tip_coordinates[0] - dt_boxes[row_index][3][0]) / single_word_average_length) - 1
+                if word_index < 0:
+                    word_index = 0
+                if word_index > len(text_list[row_index]):
+                    word_index = len(text_list[row_index]) - 1
+                text_result = text_list[row_index][word_index]
 
-            left_top_x = dt_boxes[row_index][0][0] + word_index * single_word_average_length
-            left_top_y = dt_boxes[row_index][0][1]
-            right_bottom_x = dt_boxes[row_index][2][0] + (word_index + 1) * single_word_average_length
-            right_bottom_y = dt_boxes[row_index][2][1]
+                left_top_x = dt_boxes[row_index][0][0] + word_index * single_word_average_length
+                left_top_y = dt_boxes[row_index][0][1]
+                right_bottom_x = dt_boxes[row_index][2][0] + (word_index + 1) * single_word_average_length
+                right_bottom_y = dt_boxes[row_index][2][1]
 
-        elif flag == 'sentence':
-            text_result = text_list[row_index]
+            elif flag == 'sentence':
+                text_result = text_list[row_index]
 
-            left_top_x = dt_boxes[row_index][0][0]
-            left_top_y = dt_boxes[row_index][0][1]
-            right_bottom_x = dt_boxes[row_index][2][0]
-            right_bottom_y = dt_boxes[row_index][2][1]
+                left_top_x = dt_boxes[row_index][0][0]
+                left_top_y = dt_boxes[row_index][0][1]
+                right_bottom_x = dt_boxes[row_index][2][0]
+                right_bottom_y = dt_boxes[row_index][2][1]
 
-        left_top_x = int(max(left_top_x - 2, 0))
-        left_top_y = int(max(left_top_y - 2, 0))
-        right_bottom_x = int(min(right_bottom_x + 2, img.shape[0]))
-        right_bottom_y = int(min(right_bottom_y + 2, img.shape[1]))
+            left_top_x = int(max(left_top_x - 2, 0))
+            left_top_y = int(max(left_top_y - 2, 0))
+            right_bottom_x = int(min(right_bottom_x + 2, img.shape[0]))
+            right_bottom_y = int(min(right_bottom_y + 2, img.shape[1]))
 
-        image = img[left_top_y:right_bottom_y, left_top_x:right_bottom_x, :]
-        image = cv2.rectangle(image, (left_top_x, left_top_y), (right_bottom_x, right_bottom_y),
-                              (0, 255, 0), 2)
-        print(text_result)
+            image = img[left_top_y:right_bottom_y, left_top_x:right_bottom_x, :]
+            image = cv2.rectangle(image, (left_top_x, left_top_y), (right_bottom_x, right_bottom_y),
+                                  (0, 255, 0), 2)
+            print(text_result)
 
         return image, text_result
 

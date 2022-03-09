@@ -312,15 +312,15 @@ class ModeProcessor:
         return speech_text
 
     # Read the text in another process
-    def reader(self):
-        # if not self.p.is_alive():
-        #     # self.p = Process(target=speak, args=(self.dic,))
-        #     self.p.start()
-
-        text = self.get_speech_text()
-        if len(text):
-            if not len(self.dic):
-                self.dic.append(text)
+    # def reader(self):
+    #     # if not self.p.is_alive():
+    #     #     # self.p = Process(target=speak, args=(self.dic,))
+    #     #     self.p.start()
+    #
+    #     text = self.get_speech_text()
+    #     if len(text):
+    #         if not len(self.dic):
+    #             self.dic.append(text)
 
     def resize_mode(self, finger_cord, thumb_cord, linelen, frame, x_distance, y_distance):
         """
@@ -432,9 +432,9 @@ class ModeProcessor:
 
         return frame, (min_x, min_y), (max_x, max_y), self.hand_movement_route
     
-    def selection_mode(self, x_distance, y_distance, handedness, finger_cord, frame, frame_copy):
+    def point_mode(self, x_distance, y_distance, handedness, finger_cord, frame, frame_copy):
         """
-        selection mode implement with one hand. It will generate the image shown on the screen.
+        point mode implement with one hand. It will generate the image shown on the screen.
 
         @param x_distance: the x-coordinate distance of the movement
         @param y_distance: the y-coordinate distance of the movement
@@ -559,7 +559,7 @@ class ModeProcessor:
         self.last_finger_arc_degree = {'Left': 0, 'Right': 0}
         self.single_dete_last_time = None
 
-    def mode_execute(self, handedness='Left', finger_cord=None, thumb_cord=None, frame=None, frame_copy=None, change_button = 0):
+    def mode_execute(self, handedness='Left', finger_cord=None, thumb_cord=None, frame=None, frame_copy=None, change_button=0):
         """
         Choose a mode to execute according to the number of hands.
 
@@ -589,36 +589,35 @@ class ModeProcessor:
         if self.hand_num == 0:
             self.reset_mode_variable()
             self.none_mode()
-        elif self.hand_num == 1 and change_button == 0:
-            if self.hand_mode != 'selection':
-                self.reset_mode_variable()
-                self.hand_mode = 'selection'
-            self.selection_mode(x_distance, y_distance, handedness, finger_cord, frame, frame_copy)
-
-        elif self.hand_num == 1:
-            if self.hand_mode != 'single':
-                self.reset_mode_variable()
-                self.hand_mode = 'single'
-            frame, (x1, y1), (x2, y2), hand_movement_route = self.single_mode(x_distance, y_distance, handedness,
-                                                                              finger_cord, frame, frame_copy)
-            # if (self.change_thumbnail_label):
-            #     self.reset_mode_variable()
-            #     self.hand_mode = 'resize'
-            #     frame = self.resize_mode(finger_cord, thumb_cord, linelen, frame, x_distance_move, y_distance_move)
-            # else:
-            #     if self.hand_mode != 'single':
-            #         self.reset_mode_variable()
-            #         self.hand_mode = 'single'
-            #     frame, (x1, y1), (x2, y2), hand_movement_route = self.single_mode(x_distance, y_distance, handedness,
-            #                                                                       finger_cord, frame, frame_copy)
-        elif self.hand_num == 3:
-            if self.hand_mode != 'double':
-                # In order to complement the object labels displayed on the left hand side
-                # self.last_detect_res = {'detection': None, 'ocr': '无'}
-                self.reset_mode_variable()
-                self.hand_mode = 'double'
-            frame, (x1, y1), (x2, y2) = self.double_mode(x_distance, y_distance, handedness, finger_cord, frame,
-                                                         frame_copy)
+        elif change_button == 0:  # word: point
+            if self.hand_num == 1:
+                if self.hand_mode != 'point_single':
+                    self.reset_mode_variable()
+                    self.hand_mode = 'point_single'
+                self.point_mode(x_distance, y_distance, handedness, finger_cord, frame, frame_copy)
+        elif change_button == 1:  # object: box
+            if self.hand_num == 1:
+                if self.hand_mode != 'box_single':
+                    self.reset_mode_variable()
+                    self.hand_mode = 'box_single'
+                frame, (x1, y1), (x2, y2), hand_movement_route = self.single_mode(x_distance, y_distance, handedness,
+                                                                                  finger_cord, frame, frame_copy)
+                # if (self.change_thumbnail_label):
+                #     self.reset_mode_variable()
+                #     self.hand_mode = 'resize'
+                #     frame = self.resize_mode(finger_cord, thumb_cord, linelen, frame, x_distance_move, y_distance_move)
+                # else:
+                #     if self.hand_mode != 'single':
+                #         self.reset_mode_variable()
+                #         self.hand_mode = 'single'
+                #     frame, (x1, y1), (x2, y2), hand_movement_route = self.single_mode(x_distance, y_distance, handedness,
+                #                                                                       finger_cord, frame, frame_copy)
+            elif self.hand_num == 2:
+                if self.hand_mode != 'box_double':
+                    self.reset_mode_variable()
+                    self.hand_mode = 'box_double'
+                frame, (x1, y1), (x2, y2) = self.double_mode(x_distance, y_distance, handedness, finger_cord, frame,
+                                                             frame_copy)
 
         # Update the position
         self.last_finger_cord_x[handedness] = finger_cord[0]
@@ -655,5 +654,11 @@ class ModeProcessor:
                (self.last_finger_cord_x['Right'], self.last_finger_cord_y['Right']), \
                self.last_finger_arc_degree
 
+    def get_index_tip_coordinates(self):
+        return (self.last_finger_cord_x['Right'], self.last_finger_cord_y['Right'])
+
     def get_recognize_area(self):
         return self.rectangle_point1, self.rectangle_point2
+
+    def get_text_result(self):
+        return self.text_result

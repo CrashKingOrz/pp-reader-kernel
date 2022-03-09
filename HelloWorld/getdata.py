@@ -15,14 +15,14 @@ from kernel.media.video_processor import get_video_stream, get_mp4_video_writer,
 
 
 class PPReaderDemo:
-    def __init__(self, device, window_w=480, window_h=640, out_fps=18):
+    def __init__(self, device, window_w=480, window_h=640, out_fps=30):
         self.window_w = window_w
         self.window_h = window_h
         self.out_fps = out_fps
         self.pp_reader = GetHandsInfo(device, window_w, window_h)
         self.image = None
         self.line_len = 100
-        self.fps_text = 0
+        self.change_button = 1  #
 
     def frame_processor(self):
         if self.pp_reader.results is None:
@@ -48,10 +48,11 @@ class PPReaderDemo:
                 self.image = self.pp_reader.draw_paw_box(self.image, hand_landmarks.landmark, handedness_list, hand_index)
                 self.image = self.pp_reader.mode_processor.mode_execute(handedness_list[hand_index],
                                                                         [index_finger_tip_x, index_finger_tip_y],[thumb_finger_tip_x, thumb_finger_tip_y],
-                                                                        self.image, frame_copy)
+                                                                        self.image, frame_copy, self.change_button)
         else:
             self.pp_reader.mode_processor.none_mode()
         return self.image
+
 
     def generate_pp_reader(self, image):
         # using time to calculate fps
@@ -83,17 +84,18 @@ class PPReaderDemo:
 
         # 显示刷新率FPS
         ctime = time.time()
-        self.fps_text = get_fps_text(ctime, fps_time)
+        fps_text = get_fps_text(ctime, fps_time)
         fps_time = ctime
 
-        # self.image = cv2.putText(self.image, "fps: " + str(int(fps_text)), (10, 30),
-        #                          fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0), thickness=2)
-        # self.image = cv2.putText(self.image, "paw: " + str(self.pp_reader.mode_processor.hand_num),
-        #                          (10, 90), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0),
-        #                          thickness=2)
-        # self.image = cv2.putText(self.image, "mode: " + str(self.pp_reader.mode_processor.hand_mode),
-        #                          (10, 150), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0),
-        #                          thickness=2)
+        self.image = cv2.putText(self.image, "fps: " + str(int(fps_text)), (10, 30),
+                                 fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0), thickness=2)
+        self.image = cv2.putText(self.image, "paw: " + str(self.pp_reader.mode_processor.hand_num),
+                                 (10, 90), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0),
+                                 thickness=2)
+        self.image = cv2.putText(self.image, "mode: " + str(self.pp_reader.mode_processor.hand_mode),
+                                 (10, 150), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0),
+                                 thickness=2)
+        print("paw: ", str(self.pp_reader.mode_processor.hand_num))
 
         # cv2.namedWindow('PPReader', cv2.WINDOW_FREERATIO)
         # cv2.imshow('PPReader', self.image)
@@ -105,44 +107,56 @@ class PPReaderDemo:
 
 ppreader = PPReaderDemo("GPU")
 
+import time
+ctime = time.time()
 
 def test(request):
+    global ctime
+        
+    fps = 1/(time.time()-ctime)
+    print("transmit fps: ",fps)
+    ctime = time.time()
+    
     src = json.loads(request.body).get('base64')
+    mode = json.loads(request.body).get('mode')
+    print("mode: ", mode)
+
     data = src
     image_data = base64.b64decode(data)
 
     img_np_arr = np.fromstring(image_data, np.uint8)
     img_np_arr = cv2.imdecode(img_np_arr, cv2.IMREAD_COLOR)
-    print(img_np_arr.shape)
+    # print(img_np_arr.shape)
+
+    json_data = {'state': 'ERROR: No Image Received!'}
 
     if img_np_arr is not None:
-        # img_np_arr.resize(640, 480, 4)
-        # print(img_np_arr.shape)
-
-        # ImgRGBA = cv2.cvtColor(img_np_arr, cv2.COLOR_BGR2RGBA)
-
-        # 4 channel -> 3 channel
-        # image = cv2.cvtColor(ImgRGBA, cv2.COLOR_RGBA2RGB)
+        ppreader.change_button = mode
         image = img_np_arr.copy()
         image = ppreader.generate_pp_reader(image)
 
-        detection_label = ppreader.pp_reader.mode_processor.get_detection_label()
-        ocr_text = ppreader.pp_reader.mode_processor.get_ocr_text()
-        recognize_area = ppreader.pp_reader.mode_processor.get_recognize_area()
-        fps_text = ppreader.fps_text
-        hand_num = ppreader.pp_reader.mode_processor.hand_num
-        hand_mode = ppreader.pp_reader.mode_processor.hand_mode
-        text_result = ppreader.pp_reader.mode_processor.text_result
+        cv2.imwrite("test.jpg", image)
 
-        cv2.imshow('RandomColor', image)
-        cv2.waitKey(1)
+        if mode == 0: # 识字：点
+            text_result = ppreader.pp_reader.mode_processor.get_text_result()
+            index_tip_coordinates = ppreader.pp_reader.mode_processor.get_index_tip_coordinates()
+
+            json_data = {'state': 'working', 'text': text_result, 'keypoint': index_tip_coordinates}
+            print(json_data)
+        elif mode == 1: # 识物：框
+            detection_label = ppreader.pp_reader.mode_processor.get_detection_label()
+            # ocr_text = ppreader.pp_reader.mode_processor.get_ocr_text()
+            recognize_area = ppreader.pp_reader.mode_processor.get_recognize_area()
+
+            json_data = {'state': 'working', 'text': detection_label, 'keypoint': recognize_area}
+            print(json_data)
+        #cv2.imshow('RandomColor', image)
+        #cv2.waitKey(1)
+        #pass
     else:
         print("ERROR: No Image Received!")
 
-    json_data = {'data': 'ok', 'detection_label': detection_label, 'ocr_text': ocr_text,
-                 'recognize_area': recognize_area, 'fps_text' : fps_text, 'hand_num' : hand_num, 
-                 'hand_mode': hand_mode, 'text_result': text_result}
-    # json_data = {'data': 'ok'}
+
     return HttpResponse(json.dumps(json_data, ensure_ascii=False))
 
 
