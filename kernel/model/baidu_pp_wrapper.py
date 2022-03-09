@@ -117,7 +117,7 @@ class PpOCR:
 
         return src_im, text_list
 
-    def ocr_image_one_word_or_sentence(self, img, index_finger_tip_coordinates=np.array([0, 0]), flag='sentence'):
+    def ocr_image_one_word_or_sentence(self, img, index_finger_tip_coordinates=np.array([0, 0]), flag='word'):
         """
         Read one word or one sentence.
 

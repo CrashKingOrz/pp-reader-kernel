@@ -16,6 +16,7 @@ class PPReaderDemo:
         self.pp_reader = GetHandsInfo(device, window_w, window_h)
         self.image = None
         self.line_len = 100
+        self.change_button = 1
 
     def frame_processor(self):
         if self.pp_reader.results is None:
@@ -41,7 +42,7 @@ class PPReaderDemo:
                 self.image = self.pp_reader.draw_paw_box(self.image, hand_landmarks.landmark, handedness_list, hand_index)
                 self.image = self.pp_reader.mode_processor.mode_execute(handedness_list[hand_index],
                                                                         [index_finger_tip_x, index_finger_tip_y],[thumb_finger_tip_x, thumb_finger_tip_y],
-                                                                        self.image, frame_copy)
+                                                                        self.image, frame_copy, self.change_button)
         else:
             self.pp_reader.mode_processor.none_mode()
         return self.image
@@ -89,8 +90,8 @@ class PPReaderDemo:
             self.image = cv2.putText(self.image, "mode: " + str(self.pp_reader.mode_processor.hand_mode),
                                      (10, 150), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0), thickness=2)
 
-            # cv2.namedWindow('PPReader', cv2.WINDOW_FREERATIO)
-            # cv2.imshow('PPReader', self.image)
+            cv2.namedWindow('PPReader', cv2.WINDOW_FREERATIO)
+            cv2.imshow('PPReader', self.image)
             video_writer.write(self.image)
 
             # read
@@ -102,5 +103,6 @@ class PPReaderDemo:
 
 
 if __name__ == '__main__':
-    pp_reader = PPReaderDemo("./sample/test_single.mp4", "GPU")
+    pp_reader = PPReaderDemo("./sample/test_single.mp4", "CPU")
+
     pp_reader.generate_pp_reader()

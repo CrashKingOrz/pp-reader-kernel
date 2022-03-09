@@ -29,6 +29,8 @@ class ModeProcessor:
         now = time.time()
         self.stop_time = {'Left': now, 'Right': now}
 
+        self.text_result = []
+
         # resize thumbnail
         self.stop_time_resize = now
         # change thumbnail
@@ -429,6 +431,48 @@ class ModeProcessor:
         self.rectangle_point2 = (max_x, max_y)
 
         return frame, (min_x, min_y), (max_x, max_y), self.hand_movement_route
+    
+    def selection_mode(self, x_distance, y_distance, handedness, finger_cord, frame, frame_copy):
+        """
+        selection mode implement with one hand. It will generate the image shown on the screen.
+
+        @param x_distance: the x-coordinate distance of the movement
+        @param y_distance: the y-coordinate distance of the movement
+        @param handedness: 'Right' or 'Left', there can only be 'Right'
+        @param finger_cord:  coordinates of the key point on index finger
+        @param frame: the original frame
+        @param frame_copy: a clean copy of the original frame
+        @return: image shown on the screen in single mode
+        """
+            # No movement
+        if (x_distance <= self.float_distance) and (y_distance <= self.float_distance):
+            # The time is longer than the trigger time
+            if (time.time() - self.stop_time[handedness]) > self.activate_duration:
+
+                # Draw a ring, increasing by 5 degrees every 0.01 seconds
+                arc_degree = 5 * ((time.time() - self.stop_time[handedness] - self.activate_duration) // 0.01)
+                self.last_finger_arc_degree[handedness] = arc_degree
+                if arc_degree <= 360:
+                    frame = self.generator.draw_ring(
+                        frame, finger_cord[0], finger_cord[1], arc_radius=50, end=arc_degree,
+                        color=self.handedness_color[handedness], width=15)
+                else:
+                    frame = self.generator.draw_ring(
+                        frame, finger_cord[0], finger_cord[1], arc_radius=50, end=360,
+                        color=self.handedness_color[handedness], width=15)
+                    # Make the degree 360
+                    self.last_finger_arc_degree[handedness] = 360
+
+                    # If a hand's ring is full, begin to draw lines
+                    if (self.hand_num == 1) and (self.last_finger_arc_degree[handedness] == 360):
+                        image, self.text_result = self.pp_ocr.ocr_image_one_word_or_sentence(frame_copy, finger_cord)
+
+        else:
+            # Move, reset the time and degree
+            self.stop_time[handedness] = time.time()
+            self.last_finger_arc_degree[handedness] = 0
+
+        # return frame, text_result
 
     def double_mode(self, x_distance, y_distance, handedness, finger_cord, frame, frame_copy):
         """
@@ -515,7 +559,7 @@ class ModeProcessor:
         self.last_finger_arc_degree = {'Left': 0, 'Right': 0}
         self.single_dete_last_time = None
 
-    def mode_execute(self, handedness='Left', finger_cord=None, thumb_cord=None, frame=None, frame_copy=None):
+    def mode_execute(self, handedness='Left', finger_cord=None, thumb_cord=None, frame=None, frame_copy=None, change_button = 0):
         """
         Choose a mode to execute according to the number of hands.
 
@@ -545,6 +589,12 @@ class ModeProcessor:
         if self.hand_num == 0:
             self.reset_mode_variable()
             self.none_mode()
+        elif self.hand_num == 1 and change_button == 0:
+            if self.hand_mode != 'selection':
+                self.reset_mode_variable()
+                self.hand_mode = 'selection'
+            self.selection_mode(x_distance, y_distance, handedness, finger_cord, frame, frame_copy)
+
         elif self.hand_num == 1:
             if self.hand_mode != 'single':
                 self.reset_mode_variable()
@@ -561,7 +611,7 @@ class ModeProcessor:
             #         self.hand_mode = 'single'
             #     frame, (x1, y1), (x2, y2), hand_movement_route = self.single_mode(x_distance, y_distance, handedness,
             #                                                                       finger_cord, frame, frame_copy)
-        elif self.hand_num == 2:
+        elif self.hand_num == 3:
             if self.hand_mode != 'double':
                 # In order to complement the object labels displayed on the left hand side
                 # self.last_detect_res = {'detection': None, 'ocr': '无'}

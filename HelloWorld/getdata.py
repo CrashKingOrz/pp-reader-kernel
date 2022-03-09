@@ -22,6 +22,7 @@ class PPReaderDemo:
         self.pp_reader = GetHandsInfo(device, window_w, window_h)
         self.image = None
         self.line_len = 100
+        self.fps_text = 0
 
     def frame_processor(self):
         if self.pp_reader.results is None:
@@ -82,17 +83,17 @@ class PPReaderDemo:
 
         # 显示刷新率FPS
         ctime = time.time()
-        fps_text = get_fps_text(ctime, fps_time)
+        self.fps_text = get_fps_text(ctime, fps_time)
         fps_time = ctime
 
-        self.image = cv2.putText(self.image, "fps: " + str(int(fps_text)), (10, 30),
-                                 fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0), thickness=2)
-        self.image = cv2.putText(self.image, "paw: " + str(self.pp_reader.mode_processor.hand_num),
-                                 (10, 90), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0),
-                                 thickness=2)
-        self.image = cv2.putText(self.image, "mode: " + str(self.pp_reader.mode_processor.hand_mode),
-                                 (10, 150), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0),
-                                 thickness=2)
+        # self.image = cv2.putText(self.image, "fps: " + str(int(fps_text)), (10, 30),
+        #                          fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0), thickness=2)
+        # self.image = cv2.putText(self.image, "paw: " + str(self.pp_reader.mode_processor.hand_num),
+        #                          (10, 90), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0),
+        #                          thickness=2)
+        # self.image = cv2.putText(self.image, "mode: " + str(self.pp_reader.mode_processor.hand_mode),
+        #                          (10, 150), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0),
+        #                          thickness=2)
 
         # cv2.namedWindow('PPReader', cv2.WINDOW_FREERATIO)
         # cv2.imshow('PPReader', self.image)
@@ -125,18 +126,23 @@ def test(request):
         image = img_np_arr.copy()
         image = ppreader.generate_pp_reader(image)
 
-        # detection_label = ppreader.pp_reader.mode_processor.get_detection_label()
-        # ocr_text = ppreader.pp_reader.mode_processor.get_ocr_text()
-        # recognize_area = ppreader.pp_reader.mode_processor.get_recognize_area()
+        detection_label = ppreader.pp_reader.mode_processor.get_detection_label()
+        ocr_text = ppreader.pp_reader.mode_processor.get_ocr_text()
+        recognize_area = ppreader.pp_reader.mode_processor.get_recognize_area()
+        fps_text = ppreader.fps_text
+        hand_num = ppreader.pp_reader.mode_processor.hand_num
+        hand_mode = ppreader.pp_reader.mode_processor.hand_mode
+        text_result = ppreader.pp_reader.mode_processor.text_result
 
         cv2.imshow('RandomColor', image)
         cv2.waitKey(1)
     else:
         print("ERROR: No Image Received!")
 
-    # json_data = {'data': 'ok', 'detection_label': detection_label, 'ocr_text': ocr_text,
-    #              'recognize_area': recognize_area}
-    json_data = {'data': 'ok'}
+    json_data = {'data': 'ok', 'detection_label': detection_label, 'ocr_text': ocr_text,
+                 'recognize_area': recognize_area, 'fps_text' : fps_text, 'hand_num' : hand_num, 
+                 'hand_mode': hand_mode, 'text_result': text_result}
+    # json_data = {'data': 'ok'}
     return HttpResponse(json.dumps(json_data, ensure_ascii=False))
 
 
