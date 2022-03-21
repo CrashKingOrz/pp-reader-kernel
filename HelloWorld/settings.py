@@ -23,14 +23,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-0yu7uvu+4u-!#6m%_m^_f3tp_f+*ca)8ql!d7w=dti9sp6%&=v'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['10.129.17.94','localhost','127.0.0.1','192.168.3.201','ppreader.creativecc.cn','*']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    # 'data',
+    'api',
     'django.contrib.admin',
     'django.contrib.auth',
     # 'werkzeug_debugger_runserver',
@@ -77,10 +79,15 @@ WSGI_APPLICATION = 'HelloWorld.wsgi.application'
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+  'default': {
+      'ENGINE': 'django.db.backends.mysql',
+      'NAME': 'bysms',   # 数据库名
+      'USER': 'byhy',    # 数据�?用户�?
+      'PASSWORD': 'Mima123$',# 数据�?用户密码
+      'HOST': '127.0.0.1', # 数据库服务主机名
+      'PORT': '3306',      # 数据库服务端�?
+      'CONN_MAX_AGE': 0
+  }
 }
 
 

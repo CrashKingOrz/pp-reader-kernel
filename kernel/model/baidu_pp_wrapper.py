@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import jieba
 
 from kernel.model.baidu_pp_ocr.tools.infer import utility
 from kernel.model.baidu_pp_detection.python.infer import Config, Detector
@@ -119,44 +120,86 @@ class PpOCR:
 
     def ocr_image_one_word_or_sentence(self, img, index_finger_tip_coordinates=np.array([0, 0]), flag='word'):
         """
-        Read one word or one sentence.
+        Recognize one word or one sentence.
 
         @param img: Represents the three-dimensional matrix of the image
         @return src_im:  Represents the three-dimensional matrix of the image with boxes and textlabel
         @return text_list:  the textlabel of img
         """
+
+        def point_line_distance(point, line_point1, line_point2):
+            # 计算向量
+            vec1 = line_point1 - point
+            vec2 = line_point2 - point
+            distance = np.abs(np.cross(vec1, vec2)) / np.linalg.norm(line_point1 - line_point2)
+            return distance
+
+        def get_single_character_average_length(box, words_num):
+            row_length = box[2][0] - box[3][0]
+            single_character_average_length = row_length / words_num
+            return single_character_average_length
+
         dt_boxes, rec_res = self.text_sys(img)
         text_list = []
         for text, score in rec_res:
             text_list.append(text)
 
+        left_top_x = left_top_y = right_bottom_x = right_bottom_y = 0
+
         image = img
-        text_result = text_list
+        text_result = []
+
+        if flag == 'sentence':
+            text_result = text_list
+
         if len(text_list):
             d_list = []
             text_result = []
             for box in dt_boxes:
                 d1 = point_line_distance(index_finger_tip_coordinates, box[2], box[3])
-                d2 = min(abs(index_finger_tip_coordinates[0] - box[2][0]), abs(index_finger_tip_coordinates[0] - box[3][0]))
+                if box[3][0] <= index_finger_tip_coordinates[0] <= box[2][0] and \
+                        (index_finger_tip_coordinates[1] < box[0][1] or index_finger_tip_coordinates[1] < box[1][1]):
+                    d2 = 0
+                else:
+                    d2 = 10000
                 d_list.append(d1 + d2)
 
             d_list = np.array(d_list)
             row_index = np.argmin(d_list)
-            if flag == 'word':
-                row_length = dt_boxes[row_index][2][0] - dt_boxes[row_index][3][0]
-                single_word_average_length = row_length / len(text_list[row_index])
-                word_index = int(
-                    (index_finger_tip_coordinates[0] - dt_boxes[row_index][3][0]) / single_word_average_length) - 1
-                if word_index < 0:
-                    word_index = 0
-                if word_index > len(text_list[row_index]):
-                    word_index = len(text_list[row_index]) - 1
-                text_result = text_list[row_index][word_index]
 
-                left_top_x = dt_boxes[row_index][0][0] + word_index * single_word_average_length
+            if flag == 'character':
+                single_character_length = get_single_character_average_length(dt_boxes[row_index], len(text_list[row_index]))
+                character_index = int(
+                    (index_finger_tip_coordinates[0] - dt_boxes[row_index][3][0]) / single_character_length) - 1
+                if character_index < 0:
+                    character_index = 0
+                if character_index >= len(text_list[row_index]):
+                    character_index = len(text_list[row_index]) - 1
+                text_result = text_list[row_index][character_index]
+
+                left_top_x = dt_boxes[row_index][0][0] + character_index * single_character_length
                 left_top_y = dt_boxes[row_index][0][1]
-                right_bottom_x = dt_boxes[row_index][2][0] + (word_index + 1) * single_word_average_length
+                right_bottom_x = dt_boxes[row_index][2][0] + (character_index + 1) * single_character_length
                 right_bottom_y = dt_boxes[row_index][2][1]
+
+            elif flag == 'word':
+                sentence = text_list[row_index]
+                words = jieba.lcut(sentence)
+                # print(words)
+
+                single_character_length = get_single_character_average_length(dt_boxes[row_index], len(text_list[row_index]))
+                total_length = dt_boxes[row_index][3][0]
+                for word in words:
+                    total_length += len(word)*single_character_length
+                    if total_length >= index_finger_tip_coordinates[0]:
+                        text_result = word
+
+                        left_top_x = dt_boxes[row_index][0][0] + total_length - single_character_length * len(word)
+                        left_top_y = dt_boxes[row_index][0][1]
+                        right_bottom_x = dt_boxes[row_index][2][0] + total_length
+                        right_bottom_y = dt_boxes[row_index][2][1]
+
+                        break
 
             elif flag == 'sentence':
                 text_result = text_list[row_index]
@@ -166,6 +209,7 @@ class PpOCR:
                 right_bottom_x = dt_boxes[row_index][2][0]
                 right_bottom_y = dt_boxes[row_index][2][1]
 
+
             left_top_x = int(max(left_top_x - 2, 0))
             left_top_y = int(max(left_top_y - 2, 0))
             right_bottom_x = int(min(right_bottom_x + 2, img.shape[0]))
@@ -174,14 +218,9 @@ class PpOCR:
             image = img[left_top_y:right_bottom_y, left_top_x:right_bottom_x, :]
             image = cv2.rectangle(image, (left_top_x, left_top_y), (right_bottom_x, right_bottom_y),
                                   (0, 255, 0), 2)
-            print(text_result)
+            # print(text_result)
 
         return image, text_result
 
 
-def point_line_distance(point, line_point1, line_point2):
-    # 计算向量
-    vec1 = line_point1 - point
-    vec2 = line_point2 - point
-    distance = np.abs(np.cross(vec1, vec2)) / np.linalg.norm(line_point1 - line_point2)
-    return distance
+

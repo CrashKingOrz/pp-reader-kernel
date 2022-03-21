@@ -13,7 +13,7 @@ from kernel.model.baidu_pp_wrapper import PpDetection, PpOCR
 
 
 class ModeProcessor:
-    def __init__(self, device="CPU", float_distance=10, activate_duration=0.3, single_dete_duration=0.3):
+    def __init__(self, device="CPU", distance_threshold=30, activate_duration=1.0, single_dete_duration=1.0):
         # mode: double(double hands), single(right hand), None(no hand)
         self.hand_mode = 'None'
         self.hand_num = 0
@@ -21,6 +21,7 @@ class ModeProcessor:
         # coordinate
         self.last_finger_cord_x = {'Left': 0, 'Right': 0}
         self.last_finger_cord_y = {'Left': 0, 'Right': 0}
+        self.index_tip_coordinates = {'Left': (-1, -1), 'Right': (-1, -1)}
         # degree of the ring
         self.last_finger_arc_degree = {'Left': 0, 'Right': 0}
         # the right hand model
@@ -47,7 +48,7 @@ class ModeProcessor:
 
         # the range within which fingers are allowed to float
         # Note: need to be calibrated according to the camera
-        self.float_distance = float_distance
+        self.distance_threshold = distance_threshold
 
         # triggering time
         self.activate_duration = activate_duration
@@ -97,6 +98,8 @@ class ModeProcessor:
         self.rectangle_point1 = (-1, -1)
         self.rectangle_point2 = (-1, -1)
 
+        self.execute_flag = True
+
     def generate_thumbnail(self, raw_img, frame):
         """
         Generate the thumbnail in the upper right corner.
@@ -116,7 +119,7 @@ class ModeProcessor:
                 label_en = self.pp_dete.labels_en[label_id]
                 label_zh = self.pp_dete.labels_zh[label_id - 1]
                 self.last_detect_res['detection'] = [label_zh, label_en]
-                print("detection: ", label_zh + label_en)
+                # print("detection: ", label_zh + label_en)
 
                 # Need to speech
                 self.detect_speaker = True
@@ -158,7 +161,7 @@ class ModeProcessor:
                 ocr_text = ''.join(text_list)
                 # record
                 self.last_detect_res['ocr'] = ocr_text
-                print("ocr:", ocr_text)
+                # print("ocr:", ocr_text)
 
                 # Need to speech
                 self.ocr_speaker = True
@@ -179,6 +182,7 @@ class ModeProcessor:
             y, h = (y + h + 20), (32 * line_num)
             frame[y:y + h, x:x + w] = self.generator.generate_ocr_text_area(ocr_text, line_text_num,
                                                                             line_num, x, y, w, h, frame)
+
 
         self.last_thumb_img = thumb_img
         self.img_with_thumbnail = frame
@@ -236,8 +240,8 @@ class ModeProcessor:
 
         frame[(frame_height - raw_img_h):frame_height, 0:raw_img_w, :] = cropped_img
 
-        if (abs(line_len - self.lase_line_len) < 10) and (x_distance <= self.float_distance) and (
-                y_distance <= self.float_distance):
+        if (abs(line_len - self.lase_line_len) < 10) and (x_distance <= self.distance_threshold) and (
+                y_distance <= self.distance_threshold):
             if (time.time() - self.stop_time_resize) > 2:
                 self.change_thumbnail_label = False
                 self.last_thumb_img = cropped_img
@@ -354,7 +358,7 @@ class ModeProcessor:
         (min_x, min_y), (max_x, max_y) = (-1, -1), (-1, -1)
         if not self.draw_line:
             # No movement
-            if (x_distance <= self.float_distance) and (y_distance <= self.float_distance):
+            if (x_distance <= self.distance_threshold) and (y_distance <= self.distance_threshold):
                 # The time is longer than the trigger time
                 if (time.time() - self.stop_time[handedness]) > self.activate_duration:
 
@@ -409,7 +413,7 @@ class ModeProcessor:
             # frame = np.array(frame)
 
             # No movement
-            if (x_distance <= self.float_distance) and (y_distance <= self.float_distance):
+            if (x_distance <= self.distance_threshold) and (y_distance <= self.distance_threshold):
                 if (time.time() - self.single_dete_last_time) > self.single_dete_duration:
                     if ((max_y - min_y) > 100) and ((max_x - min_x) > 100):
                         if self.thumbnail_lock:
@@ -445,7 +449,7 @@ class ModeProcessor:
         @return: image shown on the screen in single mode
         """
             # No movement
-        if (x_distance <= self.float_distance) and (y_distance <= self.float_distance):
+        if (x_distance <= self.distance_threshold) and (y_distance <= self.distance_threshold):
             # The time is longer than the trigger time
             if (time.time() - self.stop_time[handedness]) > self.activate_duration:
 
@@ -472,7 +476,7 @@ class ModeProcessor:
             self.stop_time[handedness] = time.time()
             self.last_finger_arc_degree[handedness] = 0
 
-        # return frame, text_result
+        return frame, self.text_result
 
     def double_mode(self, x_distance, y_distance, handedness, finger_cord, frame, frame_copy):
         """
@@ -488,7 +492,7 @@ class ModeProcessor:
         """
         rect_l, rect_r = (-1, -1), (-1, -1)
         # No movement
-        if (x_distance <= self.float_distance) and (y_distance <= self.float_distance):
+        if (x_distance <= self.distance_threshold) and (y_distance <= self.distance_threshold):
             # The time is longer than the trigger time
             if (time.time() - self.stop_time[handedness]) > self.activate_duration:
 
@@ -558,6 +562,8 @@ class ModeProcessor:
         self.stop_time = {'Left': time.time(), 'Right': time.time()}
         self.last_finger_arc_degree = {'Left': 0, 'Right': 0}
         self.single_dete_last_time = None
+        self.index_tip_coordinates = {'Left': (-1, -1), 'Right': (-1, -1)}
+        # self.text_result = []
 
     def mode_execute(self, handedness='Left', finger_cord=None, thumb_cord=None, frame=None, frame_copy=None, change_button=0):
         """
@@ -575,12 +581,15 @@ class ModeProcessor:
         # if isinstance(self.last_thumb_img, np.ndarray):
         #     self.adjust_change_thumbnail_label(linelen)
 
+        self.rectangle_point1 = (-1, -1)
+        self.rectangle_point2 = (-1, -1)
         (x1, y1), (x2, y2) = (-1, -1), (-1, -1)
         hand_movement_route = []
 
         # Calculate the distance of movement
         x_distance = abs(finger_cord[0] - self.last_finger_cord_x[handedness])
         y_distance = abs(finger_cord[1] - self.last_finger_cord_y[handedness])
+        move_distance = math.sqrt(x_distance*x_distance+y_distance*y_distance)
 
         #
         x_distance_move = finger_cord[0] - self.last_finger_cord_x[handedness]
@@ -594,34 +603,36 @@ class ModeProcessor:
                 if self.hand_mode != 'point_single':
                     self.reset_mode_variable()
                     self.hand_mode = 'point_single'
-                self.point_mode(x_distance, y_distance, handedness, finger_cord, frame, frame_copy)
+                frame, text_result = self.point_mode(x_distance, y_distance, handedness, finger_cord, frame, frame_copy)
         elif change_button == 1:  # object: box
-            if self.hand_num == 1:
-                if self.hand_mode != 'box_single':
-                    self.reset_mode_variable()
-                    self.hand_mode = 'box_single'
-                frame, (x1, y1), (x2, y2), hand_movement_route = self.single_mode(x_distance, y_distance, handedness,
-                                                                                  finger_cord, frame, frame_copy)
-                # if (self.change_thumbnail_label):
-                #     self.reset_mode_variable()
-                #     self.hand_mode = 'resize'
-                #     frame = self.resize_mode(finger_cord, thumb_cord, linelen, frame, x_distance_move, y_distance_move)
-                # else:
-                #     if self.hand_mode != 'single':
-                #         self.reset_mode_variable()
-                #         self.hand_mode = 'single'
-                #     frame, (x1, y1), (x2, y2), hand_movement_route = self.single_mode(x_distance, y_distance, handedness,
-                #                                                                       finger_cord, frame, frame_copy)
-            elif self.hand_num == 2:
-                if self.hand_mode != 'box_double':
-                    self.reset_mode_variable()
-                    self.hand_mode = 'box_double'
-                frame, (x1, y1), (x2, y2) = self.double_mode(x_distance, y_distance, handedness, finger_cord, frame,
-                                                             frame_copy)
+                if self.hand_num == 1:
+                    if self.hand_mode != 'box_single':
+                        self.reset_mode_variable()
+                        self.hand_mode = 'box_single'
+                    frame, (x1, y1), (x2, y2), hand_movement_route = self.single_mode(x_distance, y_distance, handedness,
+                                                                                      finger_cord, frame, frame_copy)
+                    # if (self.change_thumbnail_label):
+                    #     self.reset_mode_variable()
+                    #     self.hand_mode = 'resize'
+                    #     frame = self.resize_mode(finger_cord, thumb_cord, linelen, frame, x_distance_move, y_distance_move)
+                    # else:
+                    #     if self.hand_mode != 'single':
+                    #         self.reset_mode_variable()
+                    #         self.hand_mode = 'single'
+                    #     frame, (x1, y1), (x2, y2), hand_movement_route = self.single_mode(x_distance, y_distance, handedness,
+                    #                                                                       finger_cord, frame, frame_copy)
+                elif self.hand_num == 2:
+                    if self.hand_mode != 'box_double':
+                        self.reset_mode_variable()
+                        self.hand_mode = 'box_double'
+                    frame, (x1, y1), (x2, y2) = self.double_mode(x_distance, y_distance, handedness, finger_cord, frame,
+                                                                 frame_copy)
 
         # Update the position
         self.last_finger_cord_x[handedness] = finger_cord[0]
         self.last_finger_cord_y[handedness] = finger_cord[1]
+
+        self.index_tip_coordinates[handedness] = (finger_cord[0], finger_cord[1])
 
         return frame
 
@@ -655,10 +666,16 @@ class ModeProcessor:
                self.last_finger_arc_degree
 
     def get_index_tip_coordinates(self):
-        return (self.last_finger_cord_x['Right'], self.last_finger_cord_y['Right'])
+        return self.index_tip_coordinates['Right']
 
     def get_recognize_area(self):
         return self.rectangle_point1, self.rectangle_point2
 
     def get_text_result(self):
         return self.text_result
+
+    def get_hands_num(self):
+        return self.hand_num
+
+    def change_duration(self, fps):
+        self.single_dete_duration = self.activate_duration = 10 / fps

@@ -1,6 +1,6 @@
 import base64
 import json
-from django.shortcuts import HttpResponse
+from django.http import HttpResponse
 import numpy as np
 import cv2
 import io
@@ -22,7 +22,7 @@ class PPReaderDemo:
         self.pp_reader = GetHandsInfo(device, window_w, window_h)
         self.image = None
         self.line_len = 100
-        self.change_button = 1  #
+        self.change_button = 1
 
     def frame_processor(self):
         if self.pp_reader.results is None:
@@ -52,7 +52,6 @@ class PPReaderDemo:
         else:
             self.pp_reader.mode_processor.none_mode()
         return self.image
-
 
     def generate_pp_reader(self, image):
         # using time to calculate fps
@@ -95,7 +94,6 @@ class PPReaderDemo:
         self.image = cv2.putText(self.image, "mode: " + str(self.pp_reader.mode_processor.hand_mode),
                                  (10, 150), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 0, 0),
                                  thickness=2)
-        print("paw: ", str(self.pp_reader.mode_processor.hand_num))
 
         # cv2.namedWindow('PPReader', cv2.WINDOW_FREERATIO)
         # cv2.imshow('PPReader', self.image)
@@ -105,21 +103,38 @@ class PPReaderDemo:
 
         return self.image
 
+    def change_mode(self, mode):
+        if mode < 2:
+            self.change_button = mode
+            return True
+        else:
+            return False
+
+
 ppreader = PPReaderDemo("GPU")
 
 import time
 ctime = time.time()
+last_fps = 20
+
+
+def process_fps(fps):
+    global last_fps
+
+    if fps > 30:
+        fps = last_fps
+
+    last_fps = fps
+
+    return fps
+
 
 def test(request):
     global ctime
-        
-    fps = 1/(time.time()-ctime)
-    print("transmit fps: ",fps)
-    ctime = time.time()
     
     src = json.loads(request.body).get('base64')
     mode = json.loads(request.body).get('mode')
-    print("mode: ", mode)
+    # print("mode: ", mode)
 
     data = src
     image_data = base64.b64decode(data)
@@ -131,31 +146,48 @@ def test(request):
     json_data = {'state': 'ERROR: No Image Received!'}
 
     if img_np_arr is not None:
-        ppreader.change_button = mode
+
+        change_result = ppreader.change_mode(mode)
+        if not change_result:
+            print("ERROR: do not support the mode!")
+
         image = img_np_arr.copy()
         image = ppreader.generate_pp_reader(image)
+        # cv2.imwrite("test.jpg", image)
 
-        cv2.imwrite("test.jpg", image)
+        json_data['state'] = 'working'
+        json_data['hands'] = ppreader.pp_reader.mode_processor.get_hands_num()
 
-        if mode == 0: # 识字：点
+        if mode == 0:  # 识字：点
             text_result = ppreader.pp_reader.mode_processor.get_text_result()
             index_tip_coordinates = ppreader.pp_reader.mode_processor.get_index_tip_coordinates()
 
-            json_data = {'state': 'working', 'text': text_result, 'keypoint': index_tip_coordinates}
-            print(json_data)
-        elif mode == 1: # 识物：框
+            result_data = {'text': text_result, 'keypoint': index_tip_coordinates}
+            json_data.update(result_data)
+
+        elif mode == 1:  # 识物：框
             detection_label = ppreader.pp_reader.mode_processor.get_detection_label()
             # ocr_text = ppreader.pp_reader.mode_processor.get_ocr_text()
             recognize_area = ppreader.pp_reader.mode_processor.get_recognize_area()
 
-            json_data = {'state': 'working', 'text': detection_label, 'keypoint': recognize_area}
-            print(json_data)
+            result_data = {'text': detection_label, 'keypoint': recognize_area}
+            json_data.update(result_data)
+
         #cv2.imshow('RandomColor', image)
         #cv2.waitKey(1)
-        #pass
+
     else:
         print("ERROR: No Image Received!")
 
+    fps = 1.0/(time.time()-ctime)
+    fps = process_fps(fps)
+
+    ppreader.pp_reader.mode_processor.change_duration(fps)
+
+    ctime = time.time()
+    json_data['fps'] = int(fps)
+
+    print(json_data)
 
     return HttpResponse(json.dumps(json_data, ensure_ascii=False))
 
